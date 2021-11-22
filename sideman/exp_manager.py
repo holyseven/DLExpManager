@@ -67,6 +67,7 @@ class BaseExperimentResultManager(object):
         return reduced_results
 
     def summarize(self, metric_name='metric', only_show_dif_args: bool=True, hiding_args=None):
+        print('<summarize> found these args in the original results:', list(self.list_results[0].keys()))
         # find common args and hide them if only_show_dif_args.
         results_to_print = self.hide_common_args(metric_name) if only_show_dif_args else self.list_results
         
@@ -84,32 +85,13 @@ class BaseExperimentResultManager(object):
             results_to_print = temp_list
 
         # Use pandas.DataFrame to show the results.
-        df = pd.DataFrame(columns=list(results_to_print[0].keys()))
+        print('<summarize> only these args to print:', list(results_to_print[0].keys()))
+        df = pd.DataFrame(columns=list(results_to_print[0].keys()), dtype=object)
         for i, r in enumerate(results_to_print):
             df.loc[i] = list(r.values())
 
         return df
 
-
-############ seg2 experiment manager ############
-
-import json
-import os.path as osp
-
-def get_metric_result(logger, config):
-    final_epoch = config['trainer/epochs']
-    saved_last_epoch = list(logger.keys())[-1]
-    
-    n = int(saved_last_epoch)
-    for i in range(int(saved_last_epoch), 0, -1):
-        if 'eval' in logger[str(i)]:
-            n = i
-            break
-    
-    if 'eval' not in logger[str(n)]:
-        return 0.0, f'0/{final_epoch}'
-    else:
-        return logger[str(n)]['eval']['Mean_IoU'], f'{saved_last_epoch}/{final_epoch}'
 
 def flatten_config(config):
     flattened_config = {}
@@ -122,51 +104,3 @@ def flatten_config(config):
             flattened_config[k] = config[k]
     
     return flattened_config
-
-def read_one_exp(work_dir):
-    train_logger_path = osp.join(work_dir, 'train_logger.json')
-    val_logger_path = osp.join(work_dir, 'val_logger.json')
-    config_path = osp.join(work_dir, 'config.json')
-    
-    if not osp.exists(config_path):
-        return
-    
-    with open(config_path, 'r') as f:
-        config = json.load(fp=f)
-        flattened_config = flatten_config(config)
-    
-    if osp.exists(train_logger_path):
-        with open(train_logger_path, 'r') as f:
-            train_logger = json.load(fp=f)
-            metric_during_trainining, is_finished = get_metric_result(train_logger, flattened_config)
-            flattened_config['metric_training'] = metric_during_trainining
-            flattened_config['finished'] = is_finished
-    else:
-        flattened_config['metric_training'] = 0.0
-        flattened_config['finished'] = 'N/A'
-    
-    if osp.exists(val_logger_path):
-        with open(val_logger_path, 'r') as f:
-            val_logger = json.load(fp=f)
-            metric, _ = get_metric_result(val_logger, flattened_config)
-            flattened_config['metric'] = metric
-    else:
-        flattened_config['metric'] = 0.0
-    
-    return flattened_config
-
-
-def camvid_results():
-    import glob
-    f_dir_pattern = '../seg3_outdir/cam*/*/*/'
-    list_results = []
-    for f_dir in sorted(glob.glob(f_dir_pattern)):
-        res = read_one_exp(f_dir)
-        if res is not None:
-            list_results.append(res)
-        
-    mag = BaseExperimentResultManager(list_results)
-    df = mag.summarize()
-
-    pd.set_option('display.max_rows', df.shape[0]+1)
-    df.sort_values('metric', ascending=False)

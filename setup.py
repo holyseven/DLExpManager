@@ -23,7 +23,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 # package configuration - for reference see:
 # https://setuptools.readthedocs.io/en/latest/setuptools.html#id9
-long_description = 'Home-page: https://github.com/PaddlePaddle/InterpretDL \
+long_description = 'Home-page: https://github.com/holyseven/DLExpManager \
 Author: Holyseven  \
 Author-email: holyseven@hotmail.com \
 License: Apache 2.0 \
